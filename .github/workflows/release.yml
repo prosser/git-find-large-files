@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    name: Build (${{ matrix.rid }})
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Publish
+        run: |
+          dotnet publish src/FindLargeFiles.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:PublishAot=true -o publish-${{ matrix.rid }}
+      - name: Archive
+        if: matrix.os != 'windows-latest'
+        run: |
+          tar -czf git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz -C publish-${{ matrix.rid }} git-find-large-files
+      - name: Archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Compress-Archive -Path publish-${{ matrix.rid }}\git-find-large-files.exe -DestinationPath git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.zip
+        shell: pwsh
+      - name: Generate SHA256 (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sha256sum git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz > git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz.sha256
+      - name: Generate SHA256 (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          shasum -a 256 git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz > git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz.sha256
+      - name: Generate SHA256 (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Get-FileHash git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.zip -Algorithm SHA256 | ForEach-Object { $_.Hash + ' *git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.zip' } | Set-Content git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.zip.sha256
+        shell: pwsh
+      # Upload only the files that exist for each OS
+      - name: Upload Artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}
+          path: |
+            git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz
+            git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz.sha256
+      - name: Upload Artifact (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}
+          path: |
+            git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz
+            git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.tar.gz.sha256
+      - name: Upload Artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}
+          path: |
+            git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.zip
+            git-find-large-files-${{ matrix.rid }}-${{ github.ref_name }}.zip.sha256
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/git-find-large-files-*.tar.gz
+            artifacts/**/git-find-large-files-*.zip
+            artifacts/**/git-find-large-files-*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
