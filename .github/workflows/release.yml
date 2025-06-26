@@ -82,9 +82,28 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Update Homebrew formula version and sha256
+        run: |
+          FORMULA_PATH="homebrew-git-find-large-files/git-find-large-files.rb"
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # macOS ARM64
+          MACOS_ASSET="git-find-large-files-osx-arm64-v${VERSION}.tar.gz"
+          MACOS_SHA256=$(cat artifacts/**/${MACOS_ASSET}.sha256 | awk '{print $1}')
+
+          # Linux x64
+          LINUX_ASSET="git-find-large-files-linux-x64-v${VERSION}.tar.gz"
+          LINUX_SHA256=$(cat artifacts/**/${LINUX_ASSET}.sha256 | awk '{print $1}')
+
+          # Update version, url, and sha256 in the formula
+          sed -i.bak -E "s|version \".*\"|version \"${VERSION}\"|g" $FORMULA_PATH
+          sed -i.bak -E "s|sha256 \".*\"|sha256 \"${MACOS_SHA256}\"|1" $FORMULA_PATH
+          sed -i.bak -E "s|sha256 \".*\"|sha256 \"${LINUX_SHA256}\"|2" $FORMULA_PATH
+          rm $FORMULA_PATH.bak
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -94,9 +113,18 @@ jobs:
             artifacts/**/git-find-large-files-*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate GitHub App token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          installation_id: ${{ secrets.GH_APP_INSTALLATION_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
       - name: Update Homebrew tap formula
+        env:
+          GH_APP_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          git clone https://x-access-token:${{ secrets.TAP_PUSH_TOKEN }}@github.com/prosser/homebrew-git-find-large-files.git taprepo
+          git clone https://x-access-token:${GH_APP_TOKEN}@github.com/prosser/homebrew-git-find-large-files.git taprepo
           cp homebrew-git-find-large-files/git-find-large-files.rb taprepo/
           cd taprepo
           git config user.name "github-actions[bot]"
@@ -104,13 +132,3 @@ jobs:
           git add git-find-large-files.rb
           git commit -m "Update formula for ${{ github.ref_name }}" || echo "No changes to commit"
           git push
-      - name: Update Homebrew formula version and sha256
-        run: |
-          FORMULA_PATH="homebrew-git-find-large-files/git-find-large-files.rb"
-          VERSION="${GITHUB_REF_NAME#v}"
-          ASSET="git-find-large-files-osx-arm64-${GITHUB_REF_NAME}.tar.gz"
-          SHA256=$(cat artifacts/**/${ASSET}.sha256 | awk '{print $1}')
-          sed -i.bak -E "s|url \".*\"|url \"https://github.com/prosser/git-find-large-files/releases/download/${GITHUB_REF_NAME}/${ASSET}\"|g" $FORMULA_PATH
-          sed -i.bak -E "s|version \".*\"|version \"${VERSION}\"|g" $FORMULA_PATH
-          sed -i.bak -E "s|sha256 \".*\"|sha256 \"${SHA256}\"|g" $FORMULA_PATH
-          rm $FORMULA_PATH.bak
