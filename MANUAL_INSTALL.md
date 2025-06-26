@@ -24,7 +24,7 @@
 3. Extract the zip file to a folder in your `PATH` environment variable.
 4. Run in Command Prompt or PowerShell:
    ```powershell
-   git find-large-files.exe --help
+   git find-large-files --help
    ```
 
 ## macOS (manual)
