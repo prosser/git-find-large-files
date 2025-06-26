@@ -118,8 +118,9 @@ jobs:
         uses: tibdex/github-app-token@v2
         with:
           app_id: ${{ secrets.GH_APP_ID }}
-          installation_id: ${{ secrets.GH_APP_INSTALLATION_ID }}
           private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          installation_retrieval_mode: "id"
+          installation_retrieval_payload: ${{ secrets.GH_APP_INSTALLATION_ID }}
       - name: Update Homebrew tap formula
         env:
           GH_APP_TOKEN: ${{ steps.generate_token.outputs.token }}

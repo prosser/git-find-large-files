@@ -1,7 +1,7 @@
 class GitFindLargeFiles < Formula
   desc "Find large files in the entire history of a Git repository, including deleted or moved files. Fast, cross-platform, and outputs JSON."
   homepage "https://github.com/prosser/git-find-large-files"
-  version "0.0.2"
+  version "0.0.3"
   license "MIT"
 
   on_macos do
