@@ -11,7 +11,7 @@
    ```
 2. Run with:
    ```sh
-   git-find-large-files --help
+   git find-large-files --help
    ```
 
 ## Windows
@@ -21,11 +21,10 @@
    Get-FileHash git-find-large-files-win-x64-v0.0.3.zip -Algorithm SHA256
    # Compare the output to the contents of git-find-large-files-win-x64-v0.0.3.zip.sha256
    ```
-3. Extract the zip file.
-4. (Optional) Add the folder to your `PATH` environment variable for easy access.
-5. Run in Command Prompt or PowerShell:
+3. Extract the zip file to a folder in your `PATH` environment variable.
+4. Run in Command Prompt or PowerShell:
    ```powershell
-   git-find-large-files.exe --help
+   git find-large-files.exe --help
    ```
 
 ## macOS (manual)
